@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>세포분열 탐구 시뮬레이션</title>
+  <style>
+    :root{
+      --bg:#f4f8ff;
+      --panel:#ffffff;
+      --line:#cfe0ff;
+      --text:#1f2a44;
+      --sub:#4c5a7a;
+      --blue:#2563eb;
+      --red:#ef4444;
+      --green:#16a34a;
+      --sky:#7dd3fc;
+      --purple:#7c3aed;
+      --orange:#f59e0b;
+      --shadow:0 10px 30px rgba(31,42,68,0.12);
+      --radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+      background:linear-gradient(180deg,#f7fbff,#eef5ff);
+      color:var(--text);
+    }
+    .wrap{
+      width:min(1200px,94vw);
+      margin:0 auto;
+      padding:24px 0 40px;
+    }
+    h1{
+      margin:0 0 10px;
+      font-size:clamp(2rem,5vw,3.2rem);
+      line-height:1.15;
+    }
+    .lead{
+      margin:0 0 18px;
+      font-size:clamp(1.05rem,2.2vw,1.32rem);
+      color:var(--sub);
+      line-height:1.65;
+    }
+    .layout{
+      display:grid;
+      grid-template-columns:390px 1fr;
+      gap:20px;
+    }
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:18px;
+    }
+    h2{
+      margin:0 0 14px;
+      font-size:clamp(1.3rem,2.8vw,1.8rem);
+    }
+    .group{
+      background:#f9fbff;
+      border:1px solid #dbe8ff;
+      border-radius:18px;
+      padding:14px;
+      margin-bottom:14px;
+    }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:8px;
+      font-size:1.08rem;
+      font-weight:800;
+    }
+    .value{color:var(--blue)}
+    .mini{
+      font-size:1rem;
+      color:var(--sub);
+      line-height:1.65;
+    }
+    input[type="range"]{
+      width:100%;
+      height:38px;
+      accent-color:var(--blue);
+      cursor:pointer;
+    }
+    select{
+      width:100%;
+      font-size:1.06rem;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid #cfe0ff;
+      background:#fff;
+      color:var(--text);
+      font-weight:700;
+    }
+    .btns,.phaseBtns{
+      display:grid;
+      gap:10px;
+    }
+    .btns{grid-template-columns:repeat(3,1fr)}
+    .phaseBtns{grid-template-columns:repeat(4,1fr);margin-top:10px}
+    button{
+      border:none;
+      border-radius:15px;
+      padding:13px 10px;
+      font-size:1rem;
+      font-weight:800;
+      cursor:pointer;
+    }
+    .play{background:var(--blue);color:#fff}
+    .pause{background:var(--orange);color:#fff}
+    .reset{background:var(--red);color:#fff}
+    .phaseBtn{
+      background:#eaf2ff;
+      color:var(--blue);
+      border:1px solid #cfe0ff;
+    }
+    .phaseBtn.active{
+      background:var(--blue);
+      color:#fff;
+    }
+    .concept{
+      background:#eef7ff;
+      border:1px solid #cfe4ff;
+    }
+    .conceptText{
+      font-size:1.08rem;
+      line-height:1.7;
+    }
+    canvas{
+      width:100%;
+      display:block;
+      background:#fcfeff;
+      border:1px solid #dce8ff;
+      border-radius:20px;
+    }
+    .legend{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px 16px;
+      margin-top:12px;
+      font-size:1rem;
+      color:var(--sub);
+    }
+    .dot{
+      display:inline-block;
+      width:14px;
+      height:14px;
+      border-radius:50%;
+      margin-right:7px;
+      vertical-align:-2px;
+    }
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+      margin-top:14px;
+    }
+    .card{
+      background:#f8fbff;
+      border:1px solid #dce8ff;
+      border-radius:18px;
+      padding:14px;
+    }
+    .card .t{
+      font-size:0.98rem;
+      color:var(--sub);
+      margin-bottom:6px;
+      font-weight:700;
+    }
+    .card .n{
+      font-size:clamp(1.08rem,2vw,1.4rem);
+      font-weight:800;
+      line-height:1.45;
+    }
+    .note{
+      margin-top:12px;
+      font-size:1rem;
+      color:var(--sub);
+      line-height:1.7;
+    }
+    @media (max-width:980px){
+      .layout{grid-template-columns:1fr}
+      .cards{grid-template-columns:1fr}
+    }
+    @media (max-width:620px){
+      .btns,.phaseBtns{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>세포분열 탐구 시뮬레이션</h1>
+    <p class="lead">분열 종류와 단계를 직접 바꾸며 염색체가 언제 배열되고 언제 분리되는지 관찰해 보세요. 중기 다음에 어떤 일이 바로 일어나는지, 세포질분열 뒤 딸세포 수와 염색체 수가 어떻게 달라지는지 스스로 발견할 수 있습니다.</p>
+
+    <section class="layout">
+      <section class="panel">
+        <h2>조작하기</h2>
+
+        <div class="group">
+          <div class="row"><span>분열 종류</span></div>
+          <select id="modeSelect">
+            <option value="mitosis">체세포분열</option>
+            <option value="meiosis1">감수분열 1</option>
+            <option value="meiosis2">감수분열 2</option>
+          </select>
+          <div class="mini" id="modeMini">체세포분열은 자매 염색분체가 분리되어 유전 정보가 같은 딸세포 2개가 만들어집니다.</div>
+        </div>
+
+        <div class="group">
+          <div class="row"><span>분열 단계</span><span class="value" id="phaseText">중기</span></div>
+          <input id="phaseSlider" type="range" min="0" max="3" step="0.01" value="1">
+          <div class="phaseBtns">
+            <button class="phaseBtn" data-step="0">전기</button>
+            <button class="phaseBtn active" data-step="1">중기</button>
+            <button class="phaseBtn" data-step="2">후기</button>
+            <button class="phaseBtn" data-step="3">말기</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <div class="row"><span>염색체 수</span><span class="value" id="countText">4개</span></div>
+          <input id="countSlider" type="range" min="2" max="8" step="2" value="4">
+          <div class="mini">단순화된 모형입니다. 감수분열 1은 상동염색체 쌍으로 표시됩니다.</div>
+        </div>
+
+        <div class="group">
+          <div class="row"><span>애니메이션 속도</span><span class="value" id="speedText">1.0배</span></div>
+          <input id="speedSlider" type="range" min="0.2" max="2" step="0.1" value="1">
+          <div class="btns">
+            <button class="play" id="playBtn">자동 재생</button>
+            <button class="pause" id="pauseBtn">멈춤</button>
+            <button class="reset" id="resetBtn">다시 시작</button>
+          </div>
+        </div>
+
+        <div class="group concept">
+          <div class="row"><span>확인할 개념</span></div>
+          <div class="conceptText" id="conceptText">중기에서는 염색체가 적도판에 배열되고, 바로 다음 단계인 후기에서 분리가 시작됩니다.</div>
+        </div>
+
+        <div class="group">
+          <div class="row"><span>탐구 질문</span></div>
+          <div class="mini">
+            1) 체세포분열과 감수분열 1에서 무엇이 먼저 분리될까요?<br>
+            2) 감수분열 1과 감수분열 2는 어떻게 다를까요?<br>
+            3) 말기와 세포질분열 뒤 딸세포 수와 염색체 수는 어떻게 보일까요?
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>관찰 화면</h2>
+        <canvas id="cellCanvas" width="920" height="560"></canvas>
+
+        <div class="legend">
+          <span><span class="dot" style="background:#2563eb"></span>왼쪽으로 이동</span>
+          <span><span class="dot" style="background:#ef4444"></span>오른쪽으로 이동</span>
+          <span><span class="dot" style="background:#7dd3fc"></span>방추사</span>
+          <span><span class="dot" style="background:#16a34a"></span>세포 극</span>
+          <span><span class="dot" style="background:#7c3aed"></span>염색체</span>
+        </div>
+
+        <canvas id="graphCanvas" width="920" height="340" style="margin-top:16px;"></canvas>
+
+        <div class="cards">
+          <div class="card">
+            <div class="t">현재 관찰</div>
+            <div class="n" id="readPhase">체세포분열 · 중기</div>
+          </div>
+          <div class="card">
+            <div class="t">이동 거리</div>
+            <div class="n" id="distText">0.0 임의단위</div>
+          </div>
+          <div class="card">
+            <div class="t">세포질분열 결과</div>
+            <div class="n" id="daughterText">딸세포 형성 전</div>
+          </div>
+        </div>
+
+        <div class="note">
+          그래프의 가로축은 <strong>분열 진행 단계</strong>, 세로축은 <strong>적도판에서 세포 극 방향으로 이동한 거리(임의단위)</strong>입니다.
+          체세포분열과 감수분열 2는 <strong>자매 염색분체</strong>가 분리되고, 감수분열 1은 <strong>상동염색체</strong>가 먼저 분리됩니다.
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const modeSelect = document.getElementById('modeSelect');
+    const phaseSlider = document.getElementById('phaseSlider');
+    const countSlider = document.getElementById('countSlider');
+    const speedSlider = document.getElementById('speedSlider');
+    const phaseText = document.getElementById('phaseText');
+    const countText = document.getElementById('countText');
+    const speedText = document.getElementById('speedText');
+    const conceptText = document.getElementById('conceptText');
+    const modeMini = document.getElementById('modeMini');
+    const readPhase = document.getElementById('readPhase');
+    const distText = document.getElementById('distText');
+    const daughterText = document.getElementById('daughterText');
+    const cellCanvas = document.getElementById('cellCanvas');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const cctx = cellCanvas.getContext('2d');
+    const gctx = graphCanvas.getContext('2d');
+    const phaseBtns = Array.from(document.querySelectorAll('.phaseBtn'));
+
+    let playing = false;
+    let lastTime = 0;
+
+    function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+    function smooth(x){ x=clamp(x,0,1); return x*x*(3-2*x); }
+
+    function phaseName(v){
+      if(v<0.5) return '전기';
+      if(v<1.5) return '중기';
+      if(v<2.5) return '후기';
+      return '말기';
+    }
+
+    function modeName(){
+      if(modeSelect.value==='mitosis') return '체세포분열';
+      if(modeSelect.value==='meiosis1') return '감수분열 1';
+      return '감수분열 2';
+    }
+
+    function moveDistance(v){
+      if(v<2) return 0;
+      if(v<3) return 50*smooth(v-2);
+      return 50;
+    }
+
+    function daughterResult(){
+      const v = parseFloat(phaseSlider.value);
+      const n = parseInt(countSlider.value,10);
+      const half = Math.round(n/2);
+      if(v<2.85) return '딸세포 형성 전';
+      if(modeSelect.value==='mitosis') return '딸세포 2개 · 각각 ' + n + '개';
+      return '딸세포 2개 · 각각 ' + half + '개';
+    }
+
+    function conceptFor(mode,v){
+      if(v<0.5){
+        if(mode==='meiosis1') return '전기에서는 상동염색체가 서로 짝을 이루며 감수분열 1의 준비가 시작됩니다.';
+        return '전기에서는 염색체가 응축되어 굵고 짧게 보이며 방추사가 형성되기 시작합니다.';
+      }
+      if(v<1.5){
+        if(mode==='meiosis1') return '중기에서는 상동염색체 쌍이 적도판에 배열됩니다. 바로 다음 단계에서 상동염색체가 분리됩니다.';
+        if(mode==='meiosis2') return '중기에서는 염색체가 적도판에 배열됩니다. 감수분열 2는 체세포분열처럼 자매 염색분체 분리를 준비합니다.';
+        return '중기에서는 염색체가 적도판에 배열됩니다. 중기 다음에는 바로 후기에서 자매 염색분체가 분리되기 시작합니다.';
+      }
+      if(v<2.5){
+        if(mode==='meiosis1') return '후기에서는 자매 염색분체가 아니라 상동염색체가 먼저 서로 반대쪽 세포 극으로 이동합니다.';
+        return '후기에서는 자매 염색분체가 서로 반대쪽 세포 극으로 이동합니다.';
+      }
+      if(mode==='mitosis') return '말기와 세포질분열 뒤 유전 정보가 같은 딸세포 2개가 형성됩니다.';
+      if(mode==='meiosis1') return '감수분열 1이 끝나면 염색체 수가 절반인 딸세포 2개가 만들어집니다.';
+      return '감수분열 2는 자매 염색분체가 갈라지는 분열입니다. 전체 감수분열을 모두 마치면 최종적으로 4개의 세포가 됩니다.';
+    }
+
+    function updateTexts(){
+      const v = parseFloat(phaseSlider.value);
+      const n = parseInt(countSlider.value,10);
+      const mode = modeSelect.value;
+
+      phaseText.textContent = phaseName(v);
+      countText.textContent = n + '개';
+      speedText.textContent = parseFloat(speedSlider.value).toFixed(1) + '배';
+      conceptText.textContent = conceptFor(mode,v);
+      readPhase.textContent = modeName() + ' · ' + phaseName(v);
+      distText.textContent = moveDistance(v).toFixed(1) + ' 임의단위';
+      daughterText.textContent = daughterResult();
+
+      if(mode==='mitosis'){
+        modeMini.textContent = '체세포분열은 자매 염색분체가 분리되어 유전 정보가 같은 딸세포 2개가 만들어집니다.';
+      }else if(mode==='meiosis1'){
+        modeMini.textContent = '감수분열 1에서는 상동염색체가 먼저 분리되어 염색체 수가 절반이 되는 방향으로 진행됩니다.';
+      }else{
+        modeMini.textContent = '감수분열 2에서는 체세포분열처럼 자매 염색분체가 분리됩니다.';
+      }
+
+      const nearest = Math.round(v);
+      phaseBtns.forEach(btn=>{
+        btn.classList.toggle('active', Number(btn.dataset.step)===nearest);
+      });
+    }
+
+    function drawPole(ctx,x,y){
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath();
+      ctx.arc(x,y,10,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    function drawSpindle(ctx,x1,y1,x2,y2){
+      ctx.strokeStyle = '#7dd3fc';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(x1,y1);
+      ctx.lineTo(x2,y2);
+      ctx.stroke();
+    }
+
+    function drawCellSingle(ctx,cx,cy,rx,ry,cleavage){
+      ctx.fillStyle = '#f7fbff';
+      ctx.strokeStyle = '#c7dbff';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      if(cleavage>0){
+        ctx.strokeStyle = '#9dc6ff';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy-ry);
+        ctx.bezierCurveTo(cx-cleavage, cy-ry*0.55, cx-cleavage, cy+ry*0.55, cx, cy+ry);
+        ctx.moveTo(cx, cy-ry);
+        ctx.bezierCurveTo(cx+cleavage, cy-ry*0.55, cx+cleavage, cy+ry*0.55, cx, cy+ry);
+        ctx.stroke();
+      }
+    }
+
+    function drawCellDouble(ctx,leftCx,rightCx,cy,rx,ry){
+      ctx.fillStyle = '#f7fbff';
+      ctx.strokeStyle = '#c7dbff';
+      ctx.lineWidth = 5;
+
+      ctx.beginPath();
+      ctx.ellipse(leftCx,cy,rx,ry,0,0,Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.ellipse(rightCx,cy,rx,ry,0,0,Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#1f2a44';
+      ctx.font = '800 24px Arial, Malgun Gothic, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('딸세포 1', leftCx, cy+ry+34);
+      ctx.fillText('딸세포 2', rightCx, cy+ry+34);
+    }
+
+    function drawXChromosome(ctx,x,y,size,color,angle){
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.rotate(angle);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(5, size*0.14);
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(-size*0.32, -size*0.42);
+      ctx.lineTo(-size*0.06, -size*0.08);
+      ctx.lineTo(-size*0.22, size*0.34);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(size*0.32, -size*0.42);
+      ctx.lineTo(size*0.06, -size*0.08);
+      ctx.lineTo(size*0.22, size*0.34);
+      ctx.stroke();
+
+      ctx.fillStyle = '#374151';
+      ctx.beginPath();
+      ctx.arc(0,0,Math.max(4,size*0.08),0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawSingleChromatid(ctx,x,y,size,color,angle,flip){
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.rotate(angle);
+      ctx.scale(flip?-1:1,1);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(5, size*0.14);
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(-size*0.05, -size*0.42);
+      ctx.quadraticCurveTo(size*0.18, -size*0.10, 0, size*0.34);
+      ctx.stroke();
+
+      ctx.fillStyle = '#374151';
+      ctx.beginPath();
+      ctx.arc(0,0,Math.max(4,size*0.08),0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawMitosisLike(ctx,mode,v,count,w,h){
+      const cx = w*0.5;
+      const cy = h*0.53;
+      const rx = w*0.34;
+      const ry = h*0.30;
+      const split = smooth((v-2.55)/0.35);
+      const finalCells = v >= 2.95;
+
+      if(finalCells){
+        drawCellDouble(ctx, cx-170, cx+170, cy, 140, 118);
+      }else{
+        drawCellSingle(ctx, cx, cy, rx, ry, split*58);
+      }
+
+      if(finalCells){
+        const cellA = {cx:cx-170, cy:cy};
+        const cellB = {cx:cx+170, cy:cy};
+        const each = mode==='mitosis' ? count : Math.round(count/2);
+
+        for(let i=0;i<each;i++){
+          const t = each===1 ? 0.5 : i/(each-1);
+          const yy = cy - 44 + t*88;
+          drawSingleChromatid(ctx, cellA.cx-18, yy, 38, '#2563eb', -0.2, false);
+          drawSingleChromatid(ctx, cellA.cx+18, yy, 38, '#ef4444', 0.2, true);
+          drawSingleChromatid(ctx, cellB.cx-18, yy, 38, '#2563eb', -0.2, false);
+          drawSingleChromatid(ctx, cellB.cx+18, yy, 38, '#ef4444', 0.2, true);
+        }
+        return;
+      }
+
+      const leftPole = {x:cx-rx*0.92, y:cy};
+      const rightPole = {x:cx+rx*0.92, y:cy};
+      drawPole(ctx,leftPole.x,leftPole.y);
+      drawPole(ctx,rightPole.x,rightPole.y);
+
+      const pre = smooth(v/1);
+      const meta = smooth((v-1)/1);
+      const ana = smooth((v-2)/1);
+
+      for(let i=0;i<count;i++){
+        const t = count===1 ? 0.5 : i/(count-1);
+        const freeX = cx + (t-0.5)*210*(1-pre);
+        const freeY = cy + (t-0.5)*200*(1-pre);
+        const lineY = cy - 120 + t*240;
+        const size = 56;
+
+        if(v < 2){
+          const x = v < 1 ? freeX : cx;
+          const y = v < 1 ? freeY : lineY;
+          drawXChromosome(ctx, x, y, size, '#7c3aed', v<1 ? (t-0.5)*0.8 : 0);
+          drawSpindle(ctx,leftPole.x,leftPole.y,x,y);
+          drawSpindle(ctx,rightPole.x,rightPole.y,x,y);
+        }else{
+          const d = 16 + ana*(rx*0.60);
+          const lx = cx - d;
+          const rx2 = cx + d;
+          const ly = lineY;
+          const ry2 = lineY;
+          drawSpindle(ctx,leftPole.x,leftPole.y,lx,ly);
+          drawSpindle(ctx,rightPole.x,rightPole.y,rx2,ry2);
+          drawSingleChromatid(ctx,lx,ly,size,'#2563eb',-0.3,false);
+          drawSingleChromatid(ctx,rx2,ry2,size,'#ef4444',0.3,true);
+        }
+      }
+    }
+
+    function drawMeiosis1(ctx,v,count,w,h){
+      const cx = w*0.5;
+      const cy = h*0.53;
+      const rx = w*0.34;
+      const ry = h*0.30;
+      const split = smooth((v-2.55)/0.35);
+      const finalCells = v >= 2.95;
+
+      if(finalCells){
+        drawCellDouble(ctx, cx-170, cx+170, cy, 140, 118);
+      }else{
+        drawCellSingle(ctx, cx, cy, rx, ry, split*58);
+      }
+
+      if(finalCells){
+        const half = Math.round(count/2);
+        for(let i=0;i<half;i++){
+          const t = half===1 ? 0.5 : i/(half-1);
+          const yy = cy - 42 + t*84;
+          drawXChromosome(ctx, cx-170, yy, 38, '#2563eb', -0.08);
+          drawXChromosome(ctx, cx+170, yy, 38, '#ef4444', 0.08);
+        }
+        return;
+      }
+
+      const leftPole = {x:cx-rx*0.92, y:cy};
+      const rightPole = {x:cx+rx*0.92, y:cy};
+      drawPole(ctx,leftPole.x,leftPole.y);
+      drawPole(ctx,rightPole.x,rightPole.y);
+
+      const pairs = Math.round(count/2);
+      const pre = smooth(v/1);
+      const ana = smooth((v-2)/1);
+
+      for(let i=0;i<pairs;i++){
+        const t = pairs===1 ? 0.5 : i/(pairs-1);
+        const freeX = cx + (t-0.5)*180*(1-pre);
+        const freeY = cy + (t-0.5)*180*(1-pre);
+        const lineY = cy - 100 + t*200;
+        const size = 52;
+
+        if(v < 2){
+          const x = v < 1 ? freeX : cx;
+          const y = v < 1 ? freeY : lineY;
+          drawXChromosome(ctx, x-26, y, size, '#6366f1', v<1 ? -0.25 : 0);
+          drawXChromosome(ctx, x+26, y, size, '#a855f7', v<1 ? 0.25 : 0);
+          drawSpindle(ctx,leftPole.x,leftPole.y,x-26,y);
+          drawSpindle(ctx,rightPole.x,rightPole.y,x+26,y);
+        }else{
+          const d = 28 + ana*(rx*0.54);
+          const lx = cx - d;
+          const rx2 = cx + d;
+          drawSpindle(ctx,leftPole.x,leftPole.y,lx,lineY);
+          drawSpindle(ctx,rightPole.x,rightPole.y,rx2,lineY);
+          drawXChromosome(ctx, lx, lineY, size, '#2563eb', -0.08);
+          drawXChromosome(ctx, rx2, lineY, size, '#ef4444', 0.08);
+        }
+      }
+    }
+
+    function drawScene(){
+      const ctx = cctx;
+      const w = cellCanvas.width;
+      const h = cellCanvas.height;
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle = '#fcfeff';
+      ctx.fillRect(0,0,w,h);
+
+      const mode = modeSelect.value;
+      const v = parseFloat(phaseSlider.value);
+      const count = parseInt(countSlider.value,10);
+
+      if(mode==='meiosis1'){
+        drawMeiosis1(ctx,v,count,w,h);
+      }else{
+        drawMitosisLike(ctx,mode,v,count,w,h);
+      }
+
+      ctx.fillStyle = '#1f2a44';
+      ctx.font = '800 28px Arial, Malgun Gothic, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(modeName() + ' · ' + phaseName(v), 28, 40);
+
+      ctx.fillStyle = '#4c5a7a';
+      ctx.font = '700 20px Arial, Malgun Gothic, sans-serif';
+      if(v<2){
+        ctx.fillText('관찰 포인트: 적도판 배열을 확인해 보세요.', 28, 72);
+      }else if(mode==='meiosis1'){
+        ctx.fillText('관찰 포인트: 상동염색체가 반대쪽으로 이동합니다.', 28, 72);
+      }else{
+        ctx.fillText('관찰 포인트: 자매 염색분체가 반대쪽으로 이동합니다.', 28, 72);
+      }
+    }
+
+    function drawGraph(){
+      const ctx = gctx;
+      const w = graphCanvas.width;
+      const h = graphCanvas.height;
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle = '#fcfeff';
+      ctx.fillRect(0,0,w,h);
+
+      const m = {l:84,r:24,t:24,b:56};
+      const gx = m.l, gy = m.t, gw = w-m.l-m.r, gh = h-m.t-m.b;
+
+      ctx.strokeStyle = '#dbe8ff';
+      ctx.lineWidth = 1;
+      for(let i=0;i<=5;i++){
+        const y = gy + gh*(i/5);
+        ctx.beginPath();
+        ctx.moveTo(gx,y);
+        ctx.lineTo(gx+gw,y);
+        ctx.stroke();
+      }
+      for(let i=0;i<=3;i++){
+        const x = gx + gw*(i/3);
+        ctx.beginPath();
+        ctx.moveTo(x,gy);
+        ctx.lineTo(x,gy+gh);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#7c8db5';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(gx,gy);
+      ctx.lineTo(gx,gy+gh);
+      ctx.lineTo(gx+gw,gy+gh);
+      ctx.stroke();
+
+      ctx.fillStyle = '#1f2a44';
+      ctx.font = '700 18px Arial, Malgun Gothic, sans-serif';
+      ctx.textAlign = 'center';
+      ['전기','중기','후기','말기'].forEach((p,i)=>{
+        const x = gx + gw*(i/3);
+        ctx.fillText(p,x,gy+gh+30);
+      });
+
+      ctx.save();
+      ctx.translate(28,gy+gh/2);
+      ctx.rotate(-Math.PI/2);
+      ctx.fillText('이동 거리(임의단위)',0,0);
+      ctx.restore();
+      ctx.fillText('분열 진행 단계',gx+gw/2,h-12);
+
+      ctx.textAlign = 'right';
+      for(let i=0;i<=5;i++){
+        const value = (50 - i*10);
+        const y = gy + gh*(i/5);
+        ctx.fillText(String(value), gx-10, y+6);
+      }
+
+      function pxX(t){ return gx + gw*(t/3); }
+      function pxY(v){ return gy + gh*(1 - v/50); }
+
+      const colors = ['#2563eb','#ef4444'];
+      colors.forEach((color, idx)=>{
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        for(let i=0;i<=120;i++){
+          const t = 3*i/120;
+          const yv = moveDistance(t);
+          const x = pxX(t);
+          const y = pxY(yv);
+          if(i===0) ctx.moveTo(x,y);
+          else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+      });
+
+      const now = parseFloat(phaseSlider.value);
+      const nowDist = moveDistance(now);
+      const nx = pxX(now);
+      const ny = pxY(nowDist);
+
+      ctx.strokeStyle = '#111827';
+      ctx.setLineDash([8,8]);
+      ctx.beginPath();
+      ctx.moveTo(nx,gy);
+      ctx.lineTo(nx,gy+gh);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#111827';
+      ctx.beginPath();
+      ctx.arc(nx,ny,6,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.fillStyle = '#4c5a7a';
+      ctx.font = '700 17px Arial, Malgun Gothic, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('현재', nx+10, ny-10);
+
+      ctx.fillStyle = '#4c5a7a';
+      ctx.fillText('왼쪽 이동', gx+18, gy+24);
+      ctx.fillStyle = '#2563eb';
+      ctx.fillRect(gx+98, gy+11, 26, 10);
+
+      ctx.fillStyle = '#4c5a7a';
+      ctx.fillText('오른쪽 이동', gx+150, gy+24);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(gx+246, gy+11, 26, 10);
+    }
+
+    function render(){
+      updateTexts();
+      drawScene();
+      drawGraph();
+    }
+
+    function animate(ts){
+      if(!lastTime) lastTime = ts;
+      const dt = (ts - lastTime)/1000;
+      lastTime = ts;
+
+      if(playing){
+        const speed = parseFloat(speedSlider.value);
+        let v = parseFloat(phaseSlider.value);
+        v += dt * speed * 0.55;
+        if(v >= 3){
+          v = 3;
+          playing = false;
+        }
+        phaseSlider.value = v.toFixed(3);
+        render();
+      }
+      requestAnimationFrame(animate);
+    }
+
+    modeSelect.addEventListener('input', render);
+    phaseSlider.addEventListener('input', render);
+    countSlider.addEventListener('input', render);
+    speedSlider.addEventListener('input', render);
+
+    phaseBtns.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        phaseSlider.value = btn.dataset.step;
+        render();
+      });
+    });
+
+    document.getElementById('playBtn').addEventListener('click', ()=>{ playing = true; });
+    document.getElementById('pauseBtn').addEventListener('click', ()=>{ playing = false; });
+    document.getElementById('resetBtn').addEventListener('click', ()=>{
+      playing = false;
+      modeSelect.value = 'mitosis';
+      phaseSlider.value = '1';
+      countSlider.value = '4';
+      speedSlider.value = '1';
+      render();
+    });
+
+    render();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
